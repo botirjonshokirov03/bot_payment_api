@@ -18,47 +18,65 @@ MERCHANT_ID = os.getenv("CLICK_MERCHANT_ID")
 
 def verify_sign_string(data: dict, is_complete: bool = False) -> bool:
     """
-    Verify Click.uz signature string
-    
-    Args:
-        data: Request data from Click.uz
-        is_complete: Whether this is a complete request (True) or prepare request (False)
-        
-    Returns:
-        bool: True if signature is valid, False otherwise
+    Verify Click.uz signature string with debug logging.
     """
     try:
+        click_trans_id = str(data.get("click_trans_id", ""))
+        service_id = str(data.get("service_id", ""))
+        merchant_trans_id = str(data.get("merchant_trans_id", ""))
+        amount = str(data.get("amount", ""))  # Avoid float conversion
+        action = str(data.get("action", ""))
+        sign_time = str(data.get("sign_time", ""))
+        merchant_prepare_id = str(data.get("merchant_prepare_id", "")) if is_complete else ""
+
+        # Construct raw string
         if is_complete:
             raw = (
-                str(data["click_trans_id"])
-                + str(data["service_id"])
-                + SECRET_KEY
-                + str(data["merchant_trans_id"])
-                + str(data["merchant_prepare_id"])
-                + str(data["amount"])
-                + str(data["action"])
-                + data["sign_time"]
+                click_trans_id +
+                service_id +
+                SECRET_KEY +
+                merchant_trans_id +
+                merchant_prepare_id +
+                amount +
+                action +
+                sign_time
             )
         else:
             raw = (
-                str(data["click_trans_id"])
-                + str(data["service_id"])
-                + SECRET_KEY
-                + str(data["merchant_trans_id"])
-                + str(data["amount"])
-                + str(data["action"])
-                + data["sign_time"]
+                click_trans_id +
+                service_id +
+                SECRET_KEY +
+                merchant_trans_id +
+                amount +
+                action +
+                sign_time
             )
+
+        # Calculate MD5 signature
         calc_sign = hashlib.md5(raw.encode()).hexdigest()
-        is_valid = calc_sign == data.get("sign_string")
-        
-        if not is_valid:
-            logger.warning(f"Invalid signature: expected {calc_sign}, got {data.get('sign_string')}")
-            
-        return is_valid
+        received_sign = data.get("sign_string", "")
+
+        # Logging to debug signature mismatches
+        logger.warning("=== Signature Debug ===")
+        logger.warning(f"click_trans_id: {click_trans_id}")
+        logger.warning(f"service_id: {service_id}")
+        logger.warning(f"merchant_trans_id: {merchant_trans_id}")
+        if is_complete:
+            logger.warning(f"merchant_prepare_id: {merchant_prepare_id}")
+        logger.warning(f"amount: {amount}")
+        logger.warning(f"action: {action}")
+        logger.warning(f"sign_time: {sign_time}")
+        logger.warning(f"SECRET_KEY: {SECRET_KEY}")
+        logger.warning(f"Raw String: {raw}")
+        logger.warning(f"Generated MD5: {calc_sign}")
+        logger.warning(f"Received Sign: {received_sign}")
+        logger.warning("========================")
+
+        return calc_sign == received_sign
     except Exception as e:
-        logger.error(f"Error verifying signature: {str(e)}")
+        logger.error(f"Error verifying sign_string: {str(e)}")
         return False
+
 
 async def get_payment_status(merchant_trans_id: str) -> Optional[str]:
     """

@@ -28,7 +28,13 @@ async def click_prepare(request: Request):
         logger.info(f"Received prepare request: {body}")
         
         # Parse request data
-        data = await request.json()
+        try:
+            data = await request.json()
+        except Exception:
+            form_data = await request.body()
+            from urllib.parse import parse_qs
+            data = {k: v[0] for k, v in parse_qs(form_data.decode()).items()}
+
         logger.info(f"Parsed prepare data: {data}")
         
         # Verify signature
